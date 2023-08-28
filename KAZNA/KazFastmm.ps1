@@ -1,10 +1,29 @@
 ﻿<#
 .SYNOPSIS
-    A short one-line action-based description, e.g. 'Tests if a function is valid'
+    Скрипт для получения информации о казначейских счетах и иных реквизитах для перевода денежных средств в бюджетную систему Российской Федерации.
 .DESCRIPTION
-    A longer description of the function, its purpose, common use cases, etc.
+    Сначала с использованием API необходимо постранично загрузить данные о казначейских счетах. Далее форматируем данные, удаляя ненужные свойства, и результатом станет файл в формате csv,
+    
+    который выгружается по указанному пути. Если указать параметр -TRSAPath, то дополнительно из данных о казначейских счетах будет создан новый объект trsa с нужными свойствами, 
+    
+    будет загружен zip архив с Банковскими Идентификационными Кодами, разархивирован, и на его основе будет создано новое свойство BankName в объекте trsa. Результатом станет файл в формате csv, который 
+    
+    выгружается по указанному пути.  
 .NOTES
     Information or caveats about the function e.g. 'This function is not supported in Linux'
+.PARAMETER 
+    -KSPath <System.String>
+        Путь файла с данными казначейских счетов.
+
+        Введите полный путь и имя файла(в формате .csv). Это обязательный параметр. 
+    -JobLimit <System.Int32>
+        Количество одновременно выполняемых потоков. По умолчанию значение 6.
+    -TRSAPath <System.String>
+        Путь файла с данными Банковских Идентификационных Кодов.
+
+        Введите полный путь и имя файла(в формате .csv)
+    -Proxy <System.Uri>
+        Введите URI сетевого прокси-сервера, если вы используете прокси-сервер.
 .LINK
     Specify a URI to a help page, this will show when Get-Help -Online is used.
 .EXAMPLE
@@ -25,7 +44,7 @@ param (
 
     # Parameter help description
     [Parameter()]
-    [string]$Proxy
+    [uri]$Proxy
 )
 
 #region preferences
