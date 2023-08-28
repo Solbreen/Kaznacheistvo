@@ -43,15 +43,23 @@ $SB = {
     param($par, $pro)
     $urlKS = "http://budget.gov.ru/epbs/registry/7710568760-KRKS/data?pageSize=20&pageNum=%page%&filteractual=true&filterstatus=ACTIVE&filter_start_accountnum=40102810&filter_not_stateks=KS3"
     $data_json = @()
-    foreach ($jtem in $par) {
-        $requestparam = @{
-            'uri' = $urlKS.Replace("%page%", "$jtem")
+    if($PSBoundParameters.ContainsKey('pro')){
+        foreach ($jtem in $par){
+            $requestparam = @{
+                'uri' = $urlKS.Replace("%page%", "$jtem")
+                'proxy' = $pro
+                'ProxyUseDefaultCredentials' = $true
+            }
+            $data_json += Invoke-RestMethod @requestparam
         }
-        if ($PSBoundParameters.ContainsKey('pro')) {
-            $requestparam.add('proxy', $Pro)
-            $requestparam.add('ProxyUseDefaultCredentials', $true) 
+    }
+    else{
+        foreach ($jtem in $par){
+            $requestparam = @{
+                'uri' = $urlKS.Replace("%page%", "$jtem")
+            }
+            $data_json += Invoke-RestMethod @requestparam
         }
-        $data_json += Invoke-RestMethod @requestparam
     }
     $data_json
 }
