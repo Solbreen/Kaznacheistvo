@@ -9,6 +9,8 @@
     будет загружен zip архив с Банковскими Идентификационными Кодами, разархивирован, и на его основе будет создано новое свойство BankName в объекте trsa. Результатом станет файл в формате csv, который 
     
     выгружается по указанному пути.  
+.LINK
+    https://github.com/Solbreen/Kaznacheistvo/blob/main/KAZNA/KazFastmm.ps1
 #>
 
 [CmdletBinding()]
