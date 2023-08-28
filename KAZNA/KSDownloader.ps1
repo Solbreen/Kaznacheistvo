@@ -247,8 +247,10 @@ if ($PSBoundParameters.ContainsKey('TRSAPath')) {
     catch {
         throw "$($_.Exception.Message)"
     }
+    finally{
+        Remove-Item -Path $tempkatalog -Recurse
+    }
     #endregion
-    Remove-Item -Path $tempkatalog -Recurse
 }
 
 
