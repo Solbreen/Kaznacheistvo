@@ -144,6 +144,11 @@ while((get-job -state Completed).count -ne $nmas.count){
 write-verbose "Получаем результаты задач"
 $data += (receive-job -job (get-job) -Keep).data
 
+if($data.count -ne $firstpage.recordcount){
+    throw "Возникла ошибка при скачивании. Предполагаемое количество данных не совпадает с действительным."
+}
+
+
 Write-host "Загрузка данных осуществлена за время :"(get-date).Add(-$starttime).TimeOfDay.tostring() -ForegroundColor Green
 try {
     $data | select-object -property ksnumber, 
