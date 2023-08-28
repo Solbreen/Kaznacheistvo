@@ -61,9 +61,9 @@ $VerbosePreference = 'Continue'
 #endregion
 
 
-
 $starttime = get-date
 write-host "Начато:"(get-date) -ForegroundColor Magenta
+
 
 #region create paths
 #  Проверяем наличие указанных путей, куда будут загружаться файлы с данными.
@@ -190,6 +190,7 @@ if ($PSBoundParameters.ContainsKey('TRSAPath')) {
         Invoke-WebRequest @bikparam -OutFile $bikfile 
     }
     catch {
+        Remove-Item -Path $tempkatalog
         throw "$($_.Exception.Message)"
     }
     Expand-Archive -path $bikfile  -DestinationPath $tempkatalog
