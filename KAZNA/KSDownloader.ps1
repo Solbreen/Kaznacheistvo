@@ -153,7 +153,7 @@ write-verbose "Получаем результаты задач"
 $data += (receive-job -job (get-job) -Keep).data
 
 if($data.count -ne $firstpage.recordcount){
-    throw "Возникла ошибка при скачивании. Предполагаемое количество данных не совпадает с действительным."
+    throw "Обработанное количество записей не совпадает с количеством записей на ресурсе."
 }
 
 
@@ -256,6 +256,7 @@ if ($PSBoundParameters.ContainsKey('TRSAPath')) {
         throw "$($_.Exception.Message)"
     }
     finally{
+        Write-Verbose "Удаляем временный каталог $tempkatalog"
         Remove-Item -Path $tempkatalog -Recurse
     }
     #endregion
