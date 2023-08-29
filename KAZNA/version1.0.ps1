@@ -78,6 +78,7 @@ Write-host "recordscounttotal = " $recordscounttotal
 $keeptrsa = @( 'accountnum', 'tofkbik', 'opentofkcode' )
 $trsa = @()
 $trsa = ($data | Select-object -Unique -Property $keeptrsa)
+Write-Verbose "Количество записей в справочнике trsa $($trsa.count)"
 #endregion
 
 #region trsaformat with BIK

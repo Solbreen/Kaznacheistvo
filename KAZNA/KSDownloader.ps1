@@ -40,26 +40,19 @@ param (
 $data = @()
 $urlBIK = "https://www.cbr.ru/s/newbik"
 $SB = {
-    param($par, $pro)
+    param([array]$par, $pro)
     $urlKS = "http://budget.gov.ru/epbs/registry/7710568760-KRKS/data?pageSize=20&pageNum=%page%&filteractual=true&filterstatus=ACTIVE&filter_start_accountnum=40102810&filter_not_stateks=KS3"
     $data_json = @()
-    if($PSBoundParameters.ContainsKey('pro')){
-        foreach ($jtem in $par){
-            $requestparam = @{
-                'uri' = $urlKS.Replace("%page%", "$jtem")
-                'proxy' = $pro
-                'ProxyUseDefaultCredentials' = $true
-            }
-            $data_json += Invoke-RestMethod @requestparam
-        }
+    $requestparam = @{
+        'uri' = $urlKS
     }
-    else{
-        foreach ($jtem in $par){
-            $requestparam = @{
-                'uri' = $urlKS.Replace("%page%", "$jtem")
-            }
-            $data_json += Invoke-RestMethod @requestparam
-        }
+    if ($PSBoundParameters.ContainsKey('pro')) {
+        $requestparam.add('proxy', $pro)
+        $requestparam.add('ProxyUseDefaultCredentials', $true)
+    }
+    foreach ($jtem in $par) {
+        $requestparam.uri = $requestparam.uri.Replace("%page%", "$jtem")
+        $data_json += Invoke-RestMethod @requestparam
     }
     $data_json
 }
@@ -94,10 +87,10 @@ $firstpageparam = @(1)
 if ($PSBoundParameters.ContainsKey('proxy')) {
     $firstpageparam += $Proxy
 }
-try{
+try {
     $firstpage = invoke-command $sb -ArgumentList $firstpageparam -ErrorAction Stop
 }
-catch{
+catch {
     throw "$($_.Exception.Message)"
 }
 $data += $firstpage.data
@@ -146,13 +139,13 @@ foreach ($item in $Nmas) {
     }
 }    
 
-while((get-job -state Completed).count -ne $nmas.count){
+while ((get-job -state Completed).count -ne $nmas.count) {
     Write-Progress -Activity "Этап 2/2. Ожидаем завершения работ" -Status "Завершено: $((get-job -state Completed).count) из $($nmas.count).   $([math]::round(($((get-job -state Completed).count) / $($nmas.count) * 100), 1))%" -PercentComplete ($((get-job -state Completed).count) / $($nmas.count) * 100)
 } 
 write-verbose "Получаем результаты задач"
 $data += (receive-job -job (get-job) -Keep).data
 
-if($data.count -ne $firstpage.recordcount){
+if ($data.count -ne $firstpage.recordcount) {
     throw "Обработанное количество записей не совпадает с количеством записей на ресурсе."
 }
 
@@ -177,6 +170,7 @@ if ($PSBoundParameters.ContainsKey('TRSAPath')) {
     $keeptrsa = @( 'accountnum', 'tofkbik', 'opentofkcode' )
     $trsa = @()
     $trsa = ($data | Select-object -Unique -Property $keeptrsa)
+    Write-Verbose "Количество записей в справочнике trsa $($trsa.count)"
     #endregion
 
     #region trsaformat with BIK
@@ -255,7 +249,7 @@ if ($PSBoundParameters.ContainsKey('TRSAPath')) {
     catch {
         throw "$($_.Exception.Message)"
     }
-    finally{
+    finally {
         Write-Verbose "Удаляем временный каталог $tempkatalog"
         Remove-Item -Path $tempkatalog -Recurse
     }
