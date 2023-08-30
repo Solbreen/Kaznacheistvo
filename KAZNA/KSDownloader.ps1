@@ -51,7 +51,7 @@ $SB = {
         $requestparam.add('ProxyUseDefaultCredentials', $true)
     }
     foreach ($jtem in $par) {
-        $requestparam.uri = $requestparam.uri.Replace("%page%", "$jtem")
+        $requestparam.uri = $urlks.Replace("%page%", "$jtem")
         $data_json += Invoke-RestMethod @requestparam
     }
     $data_json
