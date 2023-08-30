@@ -57,13 +57,11 @@ $SB = {
     $data_json
 }
 $tempkatalog = "$PSScriptroot\$(get-random -minimum 100000000 -maximum 100000000000000000)"
-$CurrentVP = $VerbosePreference
-$VerbosePreference = 'Continue'
 #endregion
 
 
 $starttime = get-date
-write-host "Начато:"(get-date) -ForegroundColor Magenta
+Write-Verbose "Начато: $(get-date)" 
 
 
 #region create paths
@@ -73,7 +71,7 @@ foreach ($path in $KSPath, $TRSAPath) {
     if ( -not (test-path (split-path -path $Path -parent))) {
         try {
             New-Item -path (split-path -path $Path -parent) -itemType Directory -ErrorAction Stop | Out-Null
-            Write-host "Путь $(split-path -path $Path -parent) создан"
+            Write-Verbose "Путь $(split-path -path $Path -parent) создан"
         }
         catch {
             throw "$($_.Exception.Message)"
@@ -98,14 +96,13 @@ $pagecount = $firstpage.pagecount
 write-verbose "Общее число страниц для скачивания: $pagecount"
 #endregion
 
+#region Создание массива с массивом чисел
 $PageRange = [math]::round(($pagecount * 4) / 100)
-
 $mod = $pagecount % $PageRange
 $numofit = ($pagecount - $mod) / $PageRange
 $Nmas = @(1..($numofit + 1))
 $stp = 1
 
-#region Создание массива с массивом чисел
 for ($i = 1; $i -le $numofit; ++$i) {
     $enp = $i * $PageRange
     if ($i -eq 1) {
@@ -151,7 +148,7 @@ if ($data.count -ne $firstpage.recordcount) {
 }
 
 
-Write-host "Загрузка данных осуществлена за время :"(get-date).Add(-$starttime).TimeOfDay.tostring() -ForegroundColor Green
+Write-Verbose "Загрузка данных осуществлена за время : $((get-date).Add(-$starttime).TimeOfDay.tostring())"
 try {
     $data | select-object -property ksnumber, 
     @{ label = "clientname"; expr = { $_.clientname.replace("`n", "") } }, 
@@ -162,7 +159,8 @@ try {
     signls | Export-Csv -Path $KSPath -Encoding utf8 -NoTypeInformation -ErrorAction stop
 }
 catch {
-    throw "$($_.Exception.Message)" #под выражение или subexpression
+    Write-Warning "Не удаётся выгрузить файл с казначейскими счетами."
+    throw "$($_.Exception.Message)"
 }
 
 if ($PSBoundParameters.ContainsKey('TRSAPath')) {
@@ -176,10 +174,12 @@ if ($PSBoundParameters.ContainsKey('TRSAPath')) {
 
     #region trsaformat with BIK
     # Создаём временный каталог
+    Write-Verbose "Создаём временный каталог для скачивания архива с БИК"
     try {
         new-item -path "$tempkatalog" -ItemType Directory -ErrorAction Stop | Out-Null
     }
     catch {
+        Write-Verbose "Не удалось создать временный каталог"
         throw "$($_.Exception.Message)"
     }
 
@@ -193,11 +193,13 @@ if ($PSBoundParameters.ContainsKey('TRSAPath')) {
 
 
     #  Качаем zip файл с данным БИК, распаковываем из него xml документ с данными 
+    Write-Verbose "Качаем БИК архив"
     $bikfile = "$tempkatalog\bik.zip"
     try {
         Invoke-WebRequest @bikparam -OutFile $bikfile 
     }
     catch {
+        Write-Warning "БИК архив скачать не удалось"
         Remove-Item -Path $tempkatalog
         throw "$($_.Exception.Message)"
     }
@@ -258,5 +260,5 @@ if ($PSBoundParameters.ContainsKey('TRSAPath')) {
 }
 
 
-$VerbosePreference = $CurrentVP 
-Write-host "Закончено :"((get-date)) -ForegroundColor Magenta
+
+Write-Verbose "Закончено : $(get-date))" 
