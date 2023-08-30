@@ -67,7 +67,13 @@ Write-Verbose "Начато: $(get-date)"
 #region create paths
 #  Проверяем наличие указанных путей, куда будут загружаться файлы с данными.
 #  Если таких путей нет, то программа сама их создаст.
-foreach ($path in $KSPath, $TRSAPath) {
+if($PSBoundParameters.ContainsKey('pro')){
+    $DopPath = $TRSAPath
+} 
+else { 
+    $DopPath = $KSPath
+}
+foreach ($path in $KSPath, $DopPath) {
     if ( -not (test-path (split-path -path $Path -parent))) {
         try {
             New-Item -path (split-path -path $Path -parent) -itemType Directory -ErrorAction Stop | Out-Null
