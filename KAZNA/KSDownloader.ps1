@@ -67,7 +67,7 @@ Write-Verbose "Начато: $(get-date)"
 #region create paths
 #  Проверяем наличие указанных путей, куда будут загружаться файлы с данными.
 #  Если таких путей нет, то программа сама их создаст.
-if($PSBoundParameters.ContainsKey('pro')){
+if($PSBoundParameters.ContainsKey('TRSAPath')){
     $DopPath = $TRSAPath
 } 
 else { 
