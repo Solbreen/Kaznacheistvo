@@ -146,7 +146,8 @@ write-verbose "Получаем результаты задач"
 $data += (receive-job -job (get-job) -Keep).data
 
 if ($data.count -ne $firstpage.recordcount) {
-    throw "Обработанное количество записей не совпадает с количеством записей на ресурсе."
+    Write-Warning "Обработанное количество записей ($($data.count)) не совпадает с количеством записей на ресурсе ($($firstpage.recordcount))."
+    throw
 }
 
 
