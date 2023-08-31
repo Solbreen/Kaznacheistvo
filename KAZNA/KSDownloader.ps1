@@ -31,7 +31,12 @@ param (
 
     #   Введите URI сетевого прокси-сервера, если вы используете прокси-сервер.
     [Parameter()]
-    [uri]$Proxy
+    [uri]$Proxy,
+
+    #   Укажите предпочитаемый разделитель.
+    [Parameter()]
+    [string]
+    $Delimiter
 )
 
 #region preferences
@@ -54,6 +59,14 @@ $SB = {
     }
     $data_json
 }
+$csvParams = @{
+    Encoding = 'utf8'
+    NoTypeInformation = $true
+    ErrorAction = 'stop'
+}
+if ($PSBoundParameters.ContainsKey('Delimiter')) {
+    $csvParams.add('Delimiter', $Delimiter)
+} 
 #endregion
 
 $starttime = get-date
@@ -160,7 +173,7 @@ try {
     tofkbik, 
     @{ label = "dateopen"; expr = { get-date -Date $_.dateopen -Format "dd.MM.yyyy" } }, 
     opentofkcode, 
-    signls | Export-Csv -Path $KSPath -Encoding utf8 -NoTypeInformation -ErrorAction stop
+    signls | Export-Csv -Path $KSPath @csvParams
     Write-Verbose "Выгрузили файл с казначейскими счертами в файл '$KSPath'"
 }
 catch {
@@ -181,10 +194,10 @@ if ($PSBoundParameters.ContainsKey('TRSAPath')) {
     # Создаём временный каталог
     try {
         new-item -path "$tempkatalog" -ItemType Directory -ErrorAction Stop | Out-Null
-        Write-Verbose "Создан каталог для скачивания архива с БИК '$tempcatalog'"
+        Write-Verbose "Создан каталог для скачивания архива с БИК '$tempkatalog'"
     }
     catch {
-        Write-Warning "Не удалось создать временный каталог '$tempcatalog'"
+        Write-Warning "Не удалось создать временный каталог '$tempkatalog'"
         throw "$($_.Exception.Message)"
     }
 
@@ -211,9 +224,9 @@ if ($PSBoundParameters.ContainsKey('TRSAPath')) {
     Expand-Archive -path $bikfile  -DestinationPath $tempkatalog
 
     # Получаем данные из xml файла, создаём пространство имен для работы с xml файлом
-    $xmlfile = "$tempkatalog\*.xml"
+    $xmlfile = get-item -path "$tempkatalog\*.xml"
     [xml]$xml = get-content -path $xmlfile
-    Write-Verbose "Подгрузили данные из скачанного xml файла '$xmlfile'"
+    Write-Verbose "Подгрузили данные из скачанного xml файла '$($xmlfile.FullName)'"
     $ns = 'urn:cbr-ru:ed:v2.0'
     write-Verbose "Создаём объект с типом Xml.XmlNamespaceManager для добавления namespace '$ns'"
     $Namespace = New-Object -TypeName "Xml.XmlNamespaceManager" -ArgumentList $XML.NameTable
@@ -250,7 +263,7 @@ if ($PSBoundParameters.ContainsKey('TRSAPath')) {
     }
 
     try {
-        $trsa | Export-Csv -Path $TRSAPath -Encoding utf8 -NoTypeInformation -ErrorAction Stop
+        $trsa | Export-Csv -Path $TRSAPath @csvParams
         Write-Verbose "Выгрузили справочник trsa в файл '$TRSAPath'"
     }
     catch {
