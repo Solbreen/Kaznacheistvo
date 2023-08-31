@@ -16,7 +16,6 @@
 [CmdletBinding()]
 param (
     #   Путь файла с данными казначейских счетов.
-    #
     #   Введите полный путь и имя файла(в формате .csv)
     [Parameter(Mandatory)]
     [string]$KSPath,
@@ -26,7 +25,6 @@ param (
     [int32]$JobLimit = 6,
 
     #   Путь файла с данными Банковских Идентификационных Кодов.
-    #
     #   Введите полный путь и имя файла(в формате .csv)
     [Parameter()]
     [string]$TRSAPath,
@@ -56,37 +54,36 @@ $SB = {
     }
     $data_json
 }
-$tempkatalog = "$PSScriptroot\$(get-random -minimum 100000000 -maximum 100000000000000000)"
 #endregion
-
 
 $starttime = get-date
 Write-Verbose "Начато: $(get-date)" 
-
 
 #region create paths
 #  Проверяем наличие указанных путей, куда будут загружаться файлы с данными.
 #  Если таких путей нет, то программа сама их создаст.
 if($PSBoundParameters.ContainsKey('TRSAPath')){
-    $DopPath = $TRSAPath
+    [array]$DopPath = $KSPath, $TRSAPath
 } 
 else { 
-    $DopPath = $KSPath
+    [array]$DopPath = $KSPath
 }
-foreach ($path in $KSPath, $DopPath) {
-    if ( -not (test-path (split-path -path $Path -parent))) {
+foreach ($path in $DopPath) {
+    $rootpath = split-path -path $Path -parent
+    if ( -not (test-path $rootpath)) {
         try {
-            New-Item -path (split-path -path $Path -parent) -itemType Directory -ErrorAction Stop | Out-Null
-            Write-Verbose "Путь $(split-path -path $Path -parent) создан"
+            New-Item -path $rootpath -itemType Directory -ErrorAction Stop | Out-Null
+            Write-Verbose "Путь '$rootpath' создан"
         }
         catch {
+            Write-Warning "Не удалось создать каталог '$rootpath' для выгрузки файла."
             throw "$($_.Exception.Message)"
         }
     }
 }
 #endregion
 
-#region Запрос на кол-во страниц
+#region Запрос первой страницы
 $firstpageparam = @(1)
 if ($PSBoundParameters.ContainsKey('proxy')) {
     $firstpageparam += $Proxy
@@ -95,6 +92,7 @@ try {
     $firstpage = invoke-command $sb -ArgumentList $firstpageparam -ErrorAction Stop
 }
 catch {
+    Write-Warning "Не удалось скачать первую страницу"
     throw "$($_.Exception.Message)"
 }
 $data += $firstpage.data
@@ -124,6 +122,7 @@ $nmas[$numofit] = @($stp..$pagecount)
 write-verbose "Количество блоков страниц для скачивания: $($nmas.count)" 
 #endregion
 
+#region Запускаем скачивание и выгрузку данных
 Write-Verbose "Очищаем место от старых задач"
 get-job | remove-job
 
@@ -150,9 +149,8 @@ $data += (receive-job -job (get-job) -Keep).data
 
 if ($data.count -ne $firstpage.recordcount) {
     Write-Warning "Обработанное количество записей ($($data.count)) не совпадает с количеством записей на ресурсе ($($firstpage.recordcount))."
-    throw
+    throw "Не совпадает число обработанных записей с записями на ресурсе"
 }
-
 
 Write-Verbose "Загрузка данных осуществлена за время : $((get-date).Add(-$starttime).TimeOfDay.tostring())"
 try {
@@ -163,29 +161,30 @@ try {
     @{ label = "dateopen"; expr = { get-date -Date $_.dateopen -Format "dd.MM.yyyy" } }, 
     opentofkcode, 
     signls | Export-Csv -Path $KSPath -Encoding utf8 -NoTypeInformation -ErrorAction stop
+    Write-Verbose "Выгрузили файл с казначейскими счертами в файл '$KSPath'"
 }
 catch {
     Write-Warning "Не удаётся выгрузить файл с казначейскими счетами."
     throw "$($_.Exception.Message)"
 }
+#endregion
 
+#region TRSA
 if ($PSBoundParameters.ContainsKey('TRSAPath')) {
-    #region trsaformat
     #  Выделяем единые казначейские счета в отдельный справочник
+    $tempkatalog = "$PSScriptroot\$(get-random -minimum 100000000 -maximum 100000000000000000)"
     $keeptrsa = @( 'accountnum', 'tofkbik', 'opentofkcode' )
     $trsa = @()
     $trsa = ($data | Select-object -Unique -Property $keeptrsa)
     Write-Verbose "Количество записей в справочнике trsa $($trsa.count)"
-    #endregion
 
-    #region trsaformat with BIK
     # Создаём временный каталог
-    Write-Verbose "Создаём временный каталог для скачивания архива с БИК"
     try {
         new-item -path "$tempkatalog" -ItemType Directory -ErrorAction Stop | Out-Null
+        Write-Verbose "Создан каталог для скачивания архива с БИК '$tempcatalog'"
     }
     catch {
-        Write-Verbose "Не удалось создать временный каталог"
+        Write-Warning "Не удалось создать временный каталог '$tempcatalog'"
         throw "$($_.Exception.Message)"
     }
 
@@ -199,8 +198,8 @@ if ($PSBoundParameters.ContainsKey('TRSAPath')) {
 
 
     #  Качаем zip файл с данным БИК, распаковываем из него xml документ с данными 
-    Write-Verbose "Качаем БИК архив"
     $bikfile = "$tempkatalog\bik.zip"
+    Write-Verbose "Запускаем скачивание БИК архива в файл '$bikfile'"
     try {
         Invoke-WebRequest @bikparam -OutFile $bikfile 
     }
@@ -212,8 +211,9 @@ if ($PSBoundParameters.ContainsKey('TRSAPath')) {
     Expand-Archive -path $bikfile  -DestinationPath $tempkatalog
 
     # Получаем данные из xml файла, создаём пространство имен для работы с xml файлом
-    Write-Verbose "Подгружаем данные из скачанного xml файла"
-    [xml]$xml = get-content -path "$tempkatalog\*.xml"
+    $xmlfile = "$tempkatalog\*.xml"
+    [xml]$xml = get-content -path $xmlfile
+    Write-Verbose "Подгрузили данные из скачанного xml файла '$xmlfile'"
     $ns = 'urn:cbr-ru:ed:v2.0'
     write-Verbose "Создаём объект с типом Xml.XmlNamespaceManager для добавления namespace '$ns'"
     $Namespace = New-Object -TypeName "Xml.XmlNamespaceManager" -ArgumentList $XML.NameTable
@@ -248,23 +248,20 @@ if ($PSBoundParameters.ContainsKey('TRSAPath')) {
             add-member -InputObject $item -Name "BankName" -MemberType NoteProperty -Value "$NameCBR, $tnp $nnp"
         }
     }
-    #endregion
 
-    #region end
-    #  Конец. Просто выгружаем файлы
     try {
         $trsa | Export-Csv -Path $TRSAPath -Encoding utf8 -NoTypeInformation -ErrorAction Stop
+        Write-Verbose "Выгрузили справочник trsa в файл '$TRSAPath'"
     }
     catch {
+        Write-Warning "Не удалось выгрузить справочник trsa в файл '$TRSAPath'"
         throw "$($_.Exception.Message)"
     }
     finally {
-        Write-Verbose "Удаляем временный каталог $tempkatalog"
+        Write-Verbose "Удаляем временный каталог '$tempkatalog'"
         Remove-Item -Path $tempkatalog -Recurse
     }
-    #endregion
 }
-
-
+#endregion
 
 Write-Verbose "Закончено : $(get-date))" 
